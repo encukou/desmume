@@ -43,6 +43,7 @@
 
 using namespace std;
 
+#define L_l_G_mainthread L
 
 // functions that maybe aren't part of the Lua engine
 // but didn't make sense to add to BaseDriver (at least not yet)
@@ -59,7 +60,7 @@ extern "C" {
 	#include "lua.h"
 	#include "lauxlib.h"
 	#include "lualib.h"
-	#include "lstate.h"
+	//#include "lstate.h"
 };
 
 enum SpeedMode
@@ -145,7 +146,7 @@ bool g_stopAllScriptsEnabled = true;
 	#define GetCurrentInfo() (*infoStack.front()) // should be faster but relies on infoStack correctly being updated to always have the current info in the first element
 #else
 	std::map<lua_State*, LuaContextInfo*> luaStateToContextMap;
-	#define GetCurrentInfo() (*luaStateToContextMap[L->l_G->mainthread]) // should always work but might be slower
+	#define GetCurrentInfo() (*luaStateToContextMap[L_l_G_mainthread]) // should always work but might be slower
 #endif
 
 //#define ASK_USER_ON_FREEZE // dialog on freeze is disabled now because it seems to be unnecessary, but this can be re-defined to enable it
@@ -202,7 +203,7 @@ static const char* luaCallIDStrings [] =
 	"CALL_HOTKEY_15",
 	"CALL_HOTKEY_16",
 };
-static const int _makeSureWeHaveTheRightNumberOfStrings [sizeof(luaCallIDStrings)/sizeof(*luaCallIDStrings) == LUACALL_COUNT ? 1 : 0];
+static const int _makeSureWeHaveTheRightNumberOfStrings [sizeof(luaCallIDStrings)/sizeof(*luaCallIDStrings) == LUACALL_COUNT ? 1 : 0] = {0};
 
 static const char* luaMemHookTypeStrings [] =
 {
@@ -214,7 +215,7 @@ static const char* luaMemHookTypeStrings [] =
 	"MEMHOOK_READ_SUB",
 	"MEMHOOK_EXEC_SUB",
 };
-static const int _makeSureWeHaveTheRightNumberOfStrings2 [sizeof(luaMemHookTypeStrings)/sizeof(*luaMemHookTypeStrings) == LUAMEMHOOK_COUNT ? 1 : 0];
+static const int _makeSureWeHaveTheRightNumberOfStrings2 [sizeof(luaMemHookTypeStrings)/sizeof(*luaMemHookTypeStrings) == LUAMEMHOOK_COUNT ? 1 : 0] = {0};
 
 void StopScriptIfFinished(int uid, bool justReturned = false);
 void SetSaveKey(LuaContextInfo& info, const char* key);
@@ -282,7 +283,7 @@ static int memory_registerHook(lua_State* L, LuaMemHookType hookType, int defaul
 	// re-cache regions of hooked memory across all scripts
 	CalculateMemHookRegions(hookType);
 
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 0;
 }
 
@@ -350,7 +351,7 @@ DEFINE_LUA_FUNCTION(emu_registerbefore, "func")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFOREEMULATION]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFOREEMULATION]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(emu_registerafter, "func")
@@ -361,7 +362,7 @@ DEFINE_LUA_FUNCTION(emu_registerafter, "func")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTEREMULATION]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTEREMULATION]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(emu_registerexit, "func")
@@ -372,7 +373,7 @@ DEFINE_LUA_FUNCTION(emu_registerexit, "func")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFOREEXIT]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFOREEXIT]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(emu_registerstart, "func") // TODO: use call registered LUACALL_ONSTART functions on reset
@@ -386,7 +387,7 @@ DEFINE_LUA_FUNCTION(emu_registerstart, "func") // TODO: use call registered LUAC
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_ONSTART]);
 	if (!lua_isnil(L,-1) && driver->EMU_HasEmulationStarted())
 		lua_call(L,0,0); // call the function now since the game has already started and this start function hasn't been called yet
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(gui_register, "func")
@@ -397,7 +398,7 @@ DEFINE_LUA_FUNCTION(gui_register, "func")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTEREMULATIONGUI]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTEREMULATIONGUI]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(state_registersave, "func[,savekey]")
@@ -410,7 +411,7 @@ DEFINE_LUA_FUNCTION(state_registersave, "func[,savekey]")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFORESAVE]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_BEFORESAVE]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 DEFINE_LUA_FUNCTION(state_registerload, "func[,loadkey]")
@@ -423,7 +424,7 @@ DEFINE_LUA_FUNCTION(state_registerload, "func[,loadkey]")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTERLOAD]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_AFTERLOAD]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 
@@ -444,7 +445,7 @@ DEFINE_LUA_FUNCTION(input_registerhotkey, "keynum,func")
 			luaL_checktype(L, 2, LUA_TFUNCTION);
 		lua_settop(L,2);
 		lua_setfield(L, LUA_REGISTRYINDEX, key);
-		StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+		StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 		return 1;
 	}
 }
@@ -486,7 +487,7 @@ static int doPopup(lua_State* L, const char* deftype, const char* deficon)
 	static const int etypes [] = {MB_OK, MB_YESNO, MB_YESNOCANCEL, MB_OKCANCEL, MB_ABORTRETRYIGNORE};
 	static const int eicons [] = {MB_ICONINFORMATION, MB_ICONQUESTION, MB_ICONWARNING, MB_ICONERROR};
 //	DialogsOpen++;
-	int uid = luaStateToUIDMap[L->l_G->mainthread];
+	int uid = luaStateToUIDMap[L_l_G_mainthread];
 	EnableWindow(MainWindow->getHWnd(), false);
 //	if (Full_Screen)
 //	{
@@ -614,7 +615,7 @@ static char* ConstructScriptSaveDataPath(char* output, int bufferSize, LuaContex
 // also, if you change the default value that will reset the variable to the new default.
 DEFINE_LUA_FUNCTION(emu_persistglobalvariables, "variabletable")
 {
-	int uid = luaStateToUIDMap[L->l_G->mainthread];
+	int uid = luaStateToUIDMap[L_l_G_mainthread];
 	LuaContextInfo& info = GetCurrentInfo();
 
 	// construct a path we can load the persistent variables from
@@ -740,8 +741,8 @@ void DeferFunctionCall(lua_State* L, const char* idstring)
 	int num = lua_gettop(L);
 
 	// get the C function pointer
-	//lua_CFunction cf = lua_tocfunction(L, -(num+1));
-	lua_CFunction cf = (L->ci->func)->value.gc->cl.c.f;
+	lua_CFunction cf = lua_tocfunction(L, -(num+1));
+	//lua_CFunction cf = (L->ci->func)->value.gc->cl.c.f;
 	assert(cf);
 	lua_pushcfunction(L,cf);
 
@@ -904,8 +905,10 @@ static void toCStringConverter(lua_State* L, int i, char*& ptr, int& remaining)
 		case LUA_TNIL: APPENDPRINT "nil" END break;
 		case LUA_TBOOLEAN: APPENDPRINT lua_toboolean(L,i) ? "true" : "false" END break;
 		case LUA_TSTRING: APPENDPRINT "%s",lua_tostring(L,i) END break;
-		case LUA_TNUMBER: APPENDPRINT "%.12Lg",lua_tonumber(L,i) END break;
+		case LUA_TNUMBER: APPENDPRINT "%.12g",lua_tonumber(L,i) END break;
 		case LUA_TFUNCTION: 
+            APPENDPRINT "<function>" END break;
+            /*
 			if((L->base + i-1)->value.gc->cl.c.isC)
 			{
 				lua_CFunction func = lua_tocfunction(L, i);
@@ -929,7 +932,9 @@ static void toCStringConverter(lua_State* L, int i, char*& ptr, int& remaining)
 					APPENDPRINT "..." END
 				APPENDPRINT ")" END
 			}
+			*/
 			break;
+            
 defcase:default: APPENDPRINT "%s:%p",luaL_typename(L,i),lua_topointer(L,i) END break;
 		case LUA_TTABLE:
 		{
@@ -1111,7 +1116,7 @@ DEFINE_LUA_FUNCTION(print, "...")
 {
 	const char* str = toCString(L);
 
-	int uid = luaStateToUIDMap[L->l_G->mainthread];
+	int uid = luaStateToUIDMap[L_l_G_mainthread];
 	LuaContextInfo& info = GetCurrentInfo();
 
 	if(info.print)
@@ -1387,7 +1392,7 @@ DEFINE_LUA_FUNCTION(bitbit, "whichbit")
 	BRET(rv);
 }
 
-int emu_wait(lua_State* L);
+static int emu_wait(lua_State* L);
 int dontworry(LuaContextInfo& info);
 
 void indicateBusy(lua_State* L, bool busy)
@@ -1404,7 +1409,7 @@ void indicateBusy(lua_State* L, bool busy)
 		va_end(argp);
 		lua_concat(L, 2);
 		LuaContextInfo& info = GetCurrentInfo();
-		int uid = luaStateToUIDMap[L->l_G->mainthread];
+		int uid = luaStateToUIDMap[L_l_G_mainthread];
 		if(info.print)
 		{
 			info.print(uid, lua_tostring(L,-1));
@@ -1418,7 +1423,7 @@ void indicateBusy(lua_State* L, bool busy)
 	}
 */
 #if defined(_WIN32) && !defined(WXPORT)
-	int uid = luaStateToUIDMap[L->l_G->mainthread];
+	int uid = luaStateToUIDMap[L_l_G_mainthread];
 	HWND hDlg = (HWND)uid;
 	char str [1024];
 	GetWindowText(hDlg, str, 1000);
@@ -1493,7 +1498,7 @@ void LuaRescueHook(lua_State* L, lua_Debug *dbg)
 		if(stoprunning)
 		{
 			//lua_sethook(L, NULL, 0, 0);
-			assert(L->errfunc || L->errorJmp);
+			//assert(L->errfunc || L->errorJmp);
 			luaL_error(L, info.panic ? info.panicMessage : "terminated by user");
 		}
 
@@ -1503,6 +1508,7 @@ void LuaRescueHook(lua_State* L, lua_Debug *dbg)
 
 void printfToOutput(const char* fmt, ...)
 {
+    /*
 	va_list list;
 	va_start(list, fmt);
 	int len = vscprintf(fmt, list);
@@ -1513,7 +1519,7 @@ void printfToOutput(const char* fmt, ...)
 	if(info.print)
 	{
 		lua_State* L = info.L;
-		int uid = luaStateToUIDMap[L->l_G->mainthread];
+		int uid = luaStateToUIDMap[L_l_G_mainthread];
 		info.print(uid, str);
 		info.print(uid, "\r\n");
 		worry(L,300);
@@ -1523,6 +1529,7 @@ void printfToOutput(const char* fmt, ...)
 		fprintf(stdout, "%s\n", str);
 	}
 	delete[] str;
+    */
 }
 
 bool FailVerifyAtFrameBoundary(lua_State* L, const char* funcName, int unstartedSeverity=2, int inframeSeverity=2)
@@ -1614,7 +1621,11 @@ int StepEmulationAtSpeed(lua_State* L, SpeedMode speedMode, bool allowPause)
 	}
 
 	driver->USR_SetDisplayPostpone(postponeTime, drawNextFrame);
-	allowPause ? dontworry(info) : worry(L, worryIntensity);
+	if(allowPause) {
+        dontworry(info);
+    } else {
+        worry(L, worryIntensity);
+    }
 
 	if(!allowPause && driver->EMU_IsEmulationPaused())
 		driver->EMU_PauseEmulation(false);
@@ -1706,7 +1717,7 @@ DEFINE_LUA_FUNCTION(emu_frameadvance, "")
 	if(FailVerifyAtFrameBoundary(L, "emu.frameadvance", 0,1))
 		return emu_wait(L);
 
-	int uid = luaStateToUIDMap[L->l_G->mainthread];
+	int uid = luaStateToUIDMap[L_l_G_mainthread];
 	LuaContextInfo& info = GetCurrentInfo();
 
 	if(!info.ranFrameAdvance)
@@ -2164,7 +2175,7 @@ DEFINE_LUA_FUNCTION(state_loadscriptdata, "location")
 			//		saveData.ImportRecords(luaSaveFile);
 			//		fclose(luaSaveFile);
 
-			//		int uid = luaStateToUIDMap[L->l_G->mainthread];
+			//		int uid = luaStateToUIDMap[L_l_G_mainthread];
 			//		LuaContextInfo& info = GetCurrentInfo();
 
 			//		lua_settop(L, 0);
@@ -2585,6 +2596,7 @@ static void prepare_drawing()
 }
 static void prepare_reading()
 {
+    /*
 	curGuiData = GetCurrentInfo().guiData;
 	u32* buf = (u32*)aggDraw.screen->buf().buf();
 	if(buf)
@@ -2600,6 +2612,7 @@ static void prepare_reading()
 		curGuiData.stridePix = 256;
 #endif
 	}
+	*/
 }
 
 // note: prepare_drawing or prepare_reading must be called,
@@ -3784,7 +3797,7 @@ DEFINE_LUA_FUNCTION(emu_registermenustart, "func")
 	lua_getfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_ONINITMENU]);
 	lua_insert(L,1);
 	lua_setfield(L, LUA_REGISTRYINDEX, luaCallIDStrings[LUACALL_ONINITMENU]);
-	StopScriptIfFinished(luaStateToUIDMap[L->l_G->mainthread]);
+	StopScriptIfFinished(luaStateToUIDMap[L_l_G_mainthread]);
 	return 1;
 }
 
@@ -4163,7 +4176,7 @@ static int line(lua_State *L) {
 	x2 = luaL_checknumber(L,3) + 0.5;
 	y2 = luaL_checknumber(L,4) + 0.5;
 
-	aggDraw.hud->line(x1, y1, x2, y2);
+	//aggDraw.hud->line(x1, y1, x2, y2);
 
 	return 0;
 }
@@ -4178,7 +4191,7 @@ static int triangle(lua_State *L) {
 	x3 = luaL_checknumber(L,5) + 0.5;
 	y3 = luaL_checknumber(L,6) + 0.5;
 
-	aggDraw.hud->triangle(x1, y1, x2, y2, x3, y3);
+	//aggDraw.hud->triangle(x1, y1, x2, y2, x3, y3);
 
 	return 0;
 }
@@ -4191,7 +4204,7 @@ static int rectangle(lua_State *L) {
 	x2 = luaL_checknumber(L,3) + 0.5;
 	y2 = luaL_checknumber(L,4) + 0.5;
 
-	aggDraw.hud->rectangle(x1, y1, x2, y2);
+	//aggDraw.hud->rectangle(x1, y1, x2, y2);
 
 	return 0;
 }
@@ -4205,7 +4218,7 @@ static int roundedRect(lua_State *L) {
 	y2 = luaL_checknumber(L,4) + 0.5;
 	r  = luaL_checknumber(L,5);
 
-	aggDraw.hud->roundedRect(x1, y1, x2, y2, r);
+	//aggDraw.hud->roundedRect(x1, y1, x2, y2, r);
 
 	return 0;
 }
@@ -4218,7 +4231,7 @@ static int ellipse(lua_State *L) {
 	rx = luaL_checknumber(L,3);
 	ry = luaL_checknumber(L,4);
 
-	aggDraw.hud->ellipse(cx, cy, rx, ry);
+	//aggDraw.hud->ellipse(cx, cy, rx, ry);
 
 	return 0;
 }
@@ -4233,7 +4246,7 @@ static int arc(lua_State *L) {
 	start = luaL_checknumber(L,5);
 	sweep = luaL_checknumber(L,6);
 
-	aggDraw.hud->arc(cx, cy,rx, ry, start, sweep);
+	//aggDraw.hud->arc(cx, cy,rx, ry, start, sweep);
 
 	return 0;
 }
@@ -4249,7 +4262,7 @@ static int star(lua_State *L) {
 	startAngle = luaL_checknumber(L,5);
 	numRays = luaL_checkinteger(L,6);
 
-	aggDraw.hud->star(cx, cy, r1, r2, startAngle, numRays);
+	//aggDraw.hud->star(cx, cy, r1, r2, startAngle, numRays);
 
 	return 0;
 }
@@ -4264,7 +4277,7 @@ static int curve(lua_State *L) {
 	x3 = luaL_checknumber(L,5) + 0.5;
 	y3 = luaL_checknumber(L,6) + 0.5;
 
-	aggDraw.hud->curve(x1, y1, x2, y2, x3, y3);
+	//aggDraw.hud->curve(x1, y1, x2, y2, x3, y3);
 
 	return 0;
 }
@@ -4311,14 +4324,14 @@ static int fillColor(lua_State *L) {
 	int r,g,b,a;
 	getColorForAgg(L, r,g,b,a);
 
-	aggDraw.hud->fillColor(r, g, b, a);
+	//aggDraw.hud->fillColor(r, g, b, a);
 
 	return 0;
 }
 
 static int noFill(lua_State *L) {
 
-	aggDraw.hud->noFill();
+	//aggDraw.hud->noFill();
 	return 0;
 }
 
@@ -4327,14 +4340,14 @@ static int lineColor(lua_State *L) {
 	int r,g,b,a;
 	getColorForAgg(L, r,g,b,a);
 
-	aggDraw.hud->lineColor(r, g, b, a);
+	//aggDraw.hud->lineColor(r, g, b, a);
 
 	return 0;
 }
 
 static int noLine(lua_State *L) {
 
-	aggDraw.hud->noLine();
+	//aggDraw.hud->noLine();
 	return 0;
 }
 
@@ -4343,7 +4356,7 @@ static int lineWidth(lua_State *L) {
 	double w;
 	w = luaL_checknumber(L,1);
 
-	aggDraw.hud->lineWidth(w);
+	//aggDraw.hud->lineWidth(w);
 
 	return 0;
 }
@@ -4376,7 +4389,7 @@ static int setFont(lua_State *L) {
 	const char *choice;
 	choice = luaL_checkstring(L,1);
 
-	aggDraw.hud->setFont(choice);
+	//aggDraw.hud->setFont(choice);
 	return 0;
 }
 
@@ -4388,7 +4401,7 @@ static int text(lua_State *L) {
 	y = luaL_checkinteger(L, 2);
 	choice = luaL_checkstring(L,3);
 
-	aggDraw.hud->renderTextDropshadowed(x,y,choice);
+	//aggDraw.hud->renderTextDropshadowed(x,y,choice);
 	return 0;
 }
 
@@ -4416,7 +4429,7 @@ static int gui_osdtext(lua_State *L)
 
 	const char* msg = toCString(L,3);
 
-	osd->addFixed(x, y, "%s", msg);
+	//osd->addFixed(x, y, "%s", msg);
 
 	return 0;
 }
@@ -4965,8 +4978,8 @@ void ResetInfo(LuaContextInfo& info)
 	info.numMemHooks = 0;
 	info.persistVars.clear();
 	info.newDefaultData.ClearRecords();
-	info.guiData.data = (u32*)aggDraw.hud->buf().buf();
-	info.guiData.stridePix = aggDraw.hud->buf().stride_abs() / 4;
+	//info.guiData.data = (u32*)aggDraw.hud->buf().buf();
+	//info.guiData.stridePix = aggDraw.hud->buf().stride_abs() / 4;
 	info.guiData.xMin = 0;
 	info.guiData.xMax = 256;
 	info.guiData.yMin = 0;
@@ -5142,7 +5155,7 @@ void RequestAbortLuaScript(int uid, const char* message)
 		// but calling luaL_error here is positively unsafe
 		// (it seemingly works fine but sometimes corrupts the emulation state in colorful ways)
 		// and this works pretty well and is definitely safe, so screw it
-		info.L->hookcount = 1; // run hook function as soon as possible
+		//info.L->hookcount = 1; // run hook function as soon as possible
 		info.panic = true; // and call luaL_error once we're inside the hook function
 		if(message)
 		{
@@ -5186,6 +5199,7 @@ void SetLoadKey(LuaContextInfo& info, const char* key)
 
 void HandleCallbackError(lua_State* L, LuaContextInfo& info, int uid, bool stopScript)
 {
+    /*
 	info.crashed = true;
 	if(L->errfunc || L->errorJmp)
 		luaL_error(L, lua_tostring(L,-1));
@@ -5203,6 +5217,7 @@ void HandleCallbackError(lua_State* L, LuaContextInfo& info, int uid, bool stopS
 		if(stopScript)
 			StopLuaScript(uid);
 	}
+	*/
 }
 
 void CallExitFunction(int uid)
@@ -5681,8 +5696,11 @@ void CallRegisteredLuaLoadFunctions(int savestateNumber, const LuaSaveData& save
 				// (e.g. the registered save function returned some huge tables)
 				// check the number of parameters the registered load function expects
 				// and don't bother loading the parameters it wouldn't receive anyway
+                /*
 				int numParamsExpected = (L->top - 1)->value.gc->cl.l.p->numparams;
 				if(numParamsExpected) numParamsExpected--; // minus one for the savestate number we always pass in
+                */
+                int numParamsExpected = 3;
 
 				int prevGarbage = lua_gc(L, LUA_GCCOUNT, 0);
 
@@ -5816,7 +5834,7 @@ static void LuaStackToBinaryConverter(lua_State* L, int i, std::vector<unsigned 
 				{
 					char errmsg [1024];
 					sprintf(errmsg, "values of type \"%s\" are not allowed to be returned from registered save functions.\r\n", luaL_typename(L,i));
-					info.print(luaStateToUIDMap[L->l_G->mainthread], errmsg);
+					info.print(luaStateToUIDMap[L_l_G_mainthread], errmsg);
 				}
 				else
 				{
@@ -5990,7 +6008,7 @@ void BinaryToLuaStackConverter(lua_State* L, const unsigned char*& data, unsigne
 						sprintf(errmsg, "values of type \"%s\" are not allowed to be loaded into registered load functions. The save state's Lua save data file might be corrupted.\r\n", lua_typename(L,type));
 					else
 						sprintf(errmsg, "The save state's Lua save data file seems to be corrupted.\r\n");
-					info.print(luaStateToUIDMap[L->l_G->mainthread], errmsg);
+					info.print(luaStateToUIDMap[L_l_G_mainthread], errmsg);
 				}
 				else
 				{

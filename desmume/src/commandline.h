@@ -49,7 +49,8 @@ public:
 	std::string gbaslot_rom;
 	std::string slot1;
 	std::string console_type;
-	std::string slot1_fat_dir;
+    std::string slot1_fat_dir;
+    std::string lua_script;
 #ifndef _MSC_VER
 	int disable_sound;
 	int disable_limiter;
@@ -95,7 +96,8 @@ private:
 #endif
 	char* _slot1;
 	char *_slot1_fat_dir;
-	char* _console_type;
+    char* _console_type;
+    char* _lua_script;
 };
 
 #endif

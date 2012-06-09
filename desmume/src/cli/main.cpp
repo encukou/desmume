@@ -484,6 +484,18 @@ static void desmume_cycle(struct ctrls_event_config * cfg)
     SPU_Emulate_user();
 }
 
+void lua_print_callback(int uid, const char* str) {
+    printf("LUA printing: %s\n", str);
+}
+
+void lua_onstart_callback(int uid) {
+    printf("LUA starting\n");
+}
+
+void lua_onstop_callback(int uid, bool statusOK) {
+    printf("LUA stopping: %s\n", statusOK ? "OK" : "FAIL");
+}
+
 int main(int argc, char ** argv) {
   class configured_features my_config;
   struct ctrls_event_config ctrls_cfg;
@@ -729,6 +741,11 @@ int main(int argc, char ** argv) {
   ctrls_cfg.screen_texture = NULL;
 #endif
   ctrls_cfg.resize_cb = &resizeWindow_stub;
+
+  if(my_config.lua_script != "") {
+    OpenLuaContext(0, lua_print_callback, lua_onstart_callback, lua_onstop_callback);
+    RunLuaScriptFile(0, my_config.lua_script.c_str());
+  }
 
   while(!ctrls_cfg.sdl_quit) {
     desmume_cycle(&ctrls_cfg);

@@ -57,6 +57,7 @@ CommandLine::CommandLine()
 , load_slot(-1)
 , arm9_gdb_port(0)
 , arm7_gdb_port(0)
+, _lua_script(NULL)
 , start_paused(FALSE)
 , autodetect_method(-1)
 {
@@ -113,6 +114,7 @@ void CommandLine::loadCommonOptions()
 		{ "arm9gdb", 0, 0, G_OPTION_ARG_INT, &arm9_gdb_port, "Enable the ARM9 GDB stub on the given port", "PORT_NUM"},
 		{ "arm7gdb", 0, 0, G_OPTION_ARG_INT, &arm7_gdb_port, "Enable the ARM7 GDB stub on the given port", "PORT_NUM"},
 #endif
+        { "lua-script", 0, 0, G_OPTION_ARG_STRING, &_lua_script, "Lua script to run", "SCRIPT_FILE"},
 		{ "autodetect_method", 0, 0, G_OPTION_ARG_INT, &autodetect_method, "Autodetect backup method (0 - internal, 1 - from database)", "AUTODETECT_METHOD"},
 		{ NULL }
 	};
@@ -139,7 +141,8 @@ bool CommandLine::parse(int argc,char **argv)
 	if(_record_movie_file) record_movie_file = _record_movie_file;
 	if(_cflash_image) cflash_image = _cflash_image;
 	if(_cflash_path) cflash_path = _cflash_path;
-	if(_gbaslot_rom) gbaslot_rom = _gbaslot_rom;
+    if(_gbaslot_rom) gbaslot_rom = _gbaslot_rom;
+    if(_lua_script) lua_script = _lua_script;
 
 	if(_num_cores != -1) CommonSettings.num_cores = _num_cores;
 	if(_rigorous_timing) CommonSettings.rigorous_timing = true;

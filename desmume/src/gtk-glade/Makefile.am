@@ -37,3 +37,6 @@ desmume_glade_LDADD = ../libdesmume.a \
 if HAVE_GDB_STUB
 desmume_glade_LDADD += ../gdbstub/libgdbstub.a
 endif
+if HAVE_LUA
+desmume_glade_LDADD += $(LUA_LIBS)
+endif

@@ -173,8 +173,8 @@ PKG_CHECK_MODULES(LUA,
                   HAVE_LUA=no)
 AC_SUBST(LUA_CFLAGS)
 AC_SUBST(LUA_LIBS)
-dnl -- force lua disabled
-AM_CONDITIONAL([HAVE_LUA], [test "${HAVE_LUA}x" = "yes"])
+
+AM_CONDITIONAL([HAVE_LUA], [test "${HAVE_LUA}" = "yes"])
 
 if test ! "x$HAVE_OPENAL" = "xyes" ; then
   PKG_CHECK_MODULES(ALSA, alsa >= 1.0, HAVE_ALSA=yes, HAVE_ALSA=no)

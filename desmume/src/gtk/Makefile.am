@@ -27,6 +27,9 @@ endif
 if HAVE_LIBOSMESA
 desmume_LDADD += $(OSMESA_LIBS)
 endif
+if HAVE_LUA
+desmume_LDADD += $(LUA_LIBS)
+endif
 
 UPDATE_DESKTOP = \
   appsdir=$(DESTDIR)$(datadir)/applications ; \

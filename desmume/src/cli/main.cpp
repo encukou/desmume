@@ -57,6 +57,7 @@
 #include "desmume_config.h"
 #include "commandline.h"
 #include "addons.h"
+#include "lua-engine.h"
 #ifdef GDB_STUB
 #include "gdbstub.h"
 #endif

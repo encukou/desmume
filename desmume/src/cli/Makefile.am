@@ -9,3 +9,6 @@ desmume_cli_LDADD = ../libdesmume.a $(SDL_LIBS) $(ALSA_LIBS) $(LIBAGG_LIBS) $(GL
 if HAVE_GDB_STUB
 desmume_cli_LDADD += ../gdbstub/libgdbstub.a
 endif
+if HAVE_LUA
+desmume_cli_LDADD += $(LUA_LIBS)
+endif

@@ -497,9 +497,99 @@ void lua_onstop_callback(int uid, bool statusOK) {
     printf("LUA stopping: %s\n", statusOK ? "OK" : "FAIL");
 }
 
+class CliDriver : public UnixDriver
+{
+public:
+    struct ctrls_event_config ctrls_cfg;
+    class configured_features my_config;
+#ifdef INCLUDE_OPENGL_2D
+    GLuint screen_texture[1];
+#endif
+
+    int limiter_frame_counter;
+    int limiter_tick0;
+
+#ifdef DISPLAY_FPS
+    u32 fps_timing;
+    u32 fps_frame_counter;
+    u32 fps_previous_time;
+#endif
+
+    CliDriver() {
+        limiter_frame_counter = limiter_tick0 = 0;
+#ifdef DISPLAY_FPS
+        fps_timing = fps_frame_counter = fps_previous_time = 0;
+#endif
+    };
+
+    eStepMainLoopResult EMU_StepMainLoop(bool allowSleep, bool allowPause, int frameSkip, bool disableUser, bool disableCore) {
+        desmume_cycle(&ctrls_cfg);
+
+        int now;
+
+        osd->update();
+        DrawHUD();
+#ifdef INCLUDE_OPENGL_2D
+        if ( my_config.opengl_2d) {
+        opengl_Draw( screen_texture, my_config.soft_colour_convert);
+        ctrls_cfg.resize_cb = &resizeWindow;
+        }
+        else
+#endif
+        Draw();
+        osd->clear();
+
+        for ( int i = 0; i < my_config.frameskip; i++ ) {
+            NDS_SkipNextFrame();
+            desmume_cycle(&ctrls_cfg);
+        }
+
+#ifdef DISPLAY_FPS
+        now = SDL_GetTicks();
+#endif
+        if ( !my_config.disable_limiter && !ctrls_cfg.boost) {
+#ifndef DISPLAY_FPS
+        now = SDL_GetTicks();
+#endif
+        int delay =  (limiter_tick0 + limiter_frame_counter*1000/FPS_LIMITER_FPS) - now;
+        if (delay < -500 || delay > 100) { // reset if we fall too far behind don't want to run super fast until we catch up
+            limiter_tick0 = now;
+            limiter_frame_counter = 0;
+        } else if (delay > 0) {
+            SDL_Delay(delay);
+        }
+        }
+        // always count frames, we'll mess up if the limiter gets turned on later otherwise
+        limiter_frame_counter += 1 + my_config.frameskip;
+
+#ifdef DISPLAY_FPS
+        fps_frame_counter += 1;
+        fps_timing += now - fps_previous_time;
+        fps_previous_time = now;
+
+        if ( fps_frame_counter == NUM_FRAMES_TO_TIME) {
+        char win_title[20];
+        float fps = NUM_FRAMES_TO_TIME * 1000.f / fps_timing;
+
+        fps_frame_counter = 0;
+        fps_timing = 0;
+
+        snprintf( win_title, sizeof(win_title), "Desmume %f", fps);
+
+        SDL_WM_SetCaption( win_title, NULL);
+        }
+#endif
+
+        return ESTEP_DONE;
+    };
+};
+
 int main(int argc, char ** argv) {
-  class configured_features my_config;
-  struct ctrls_event_config ctrls_cfg;
+  CliDriver* cli_driver = new CliDriver();
+  driver = cli_driver; // "driver" is global
+
+  class configured_features &my_config = cli_driver->my_config;
+  struct ctrls_event_config &ctrls_cfg = cli_driver->ctrls_cfg;
 #ifdef GDB_STUB
   gdbstub_handle_t arm9_gdb_stub;
   gdbstub_handle_t arm7_gdb_stub;
@@ -509,22 +599,12 @@ int main(int argc, char ** argv) {
   struct armcpu_ctrl_iface *arm7_ctrl_iface;
 #endif
 
-  int limiter_frame_counter = 0;
-  int limiter_tick0 = 0;
   int error;
 
   GKeyFile *keyfile;
 
-  int now;
-
-#ifdef DISPLAY_FPS
-  u32 fps_timing = 0;
-  u32 fps_frame_counter = 0;
-  u32 fps_previous_time = 0;
-#endif
-
 #ifdef INCLUDE_OPENGL_2D
-  GLuint screen_texture[1];
+  GLuint *screen_texture = cli_driver->screen_texture;
 #endif
   /* this holds some info about our display */
   const SDL_VideoInfo *videoInfo;
@@ -749,60 +829,7 @@ int main(int argc, char ** argv) {
   }
 
   while(!ctrls_cfg.sdl_quit) {
-    desmume_cycle(&ctrls_cfg);
-
-    osd->update();
-    DrawHUD();
-#ifdef INCLUDE_OPENGL_2D
-    if ( my_config.opengl_2d) {
-      opengl_Draw( screen_texture, my_config.soft_colour_convert);
-      ctrls_cfg.resize_cb = &resizeWindow;
-    }
-    else
-#endif
-      Draw();
-    osd->clear();
-
-    for ( int i = 0; i < my_config.frameskip; i++ ) {
-        NDS_SkipNextFrame();
-        desmume_cycle(&ctrls_cfg);
-    }
-
-#ifdef DISPLAY_FPS
-    now = SDL_GetTicks();
-#endif
-    if ( !my_config.disable_limiter && !ctrls_cfg.boost) {
-#ifndef DISPLAY_FPS
-      now = SDL_GetTicks();
-#endif
-      int delay =  (limiter_tick0 + limiter_frame_counter*1000/FPS_LIMITER_FPS) - now;
-      if (delay < -500 || delay > 100) { // reset if we fall too far behind don't want to run super fast until we catch up
-        limiter_tick0 = now;
-        limiter_frame_counter = 0;
-      } else if (delay > 0) {
-        SDL_Delay(delay);
-      }
-    }
-    // always count frames, we'll mess up if the limiter gets turned on later otherwise
-    limiter_frame_counter += 1 + my_config.frameskip;
-
-#ifdef DISPLAY_FPS
-    fps_frame_counter += 1;
-    fps_timing += now - fps_previous_time;
-    fps_previous_time = now;
-
-    if ( fps_frame_counter == NUM_FRAMES_TO_TIME) {
-      char win_title[20];
-      float fps = NUM_FRAMES_TO_TIME * 1000.f / fps_timing;
-
-      fps_frame_counter = 0;
-      fps_timing = 0;
-
-      snprintf( win_title, sizeof(win_title), "Desmume %f", fps);
-
-      SDL_WM_SetCaption( win_title, NULL);
-    }
-#endif
+        cli_driver->EMU_StepMainLoop(true, true, -1, false, false);
   }
 
   /* Unload joystick */

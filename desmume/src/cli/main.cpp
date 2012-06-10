@@ -509,6 +509,8 @@ public:
     int limiter_frame_counter;
     int limiter_tick0;
 
+    bool paused;
+
 #ifdef DISPLAY_FPS
     u32 fps_timing;
     u32 fps_frame_counter;
@@ -522,8 +524,18 @@ public:
 #endif
     };
 
+    void EMU_PauseEmulation(bool pause) {
+        paused = pause;
+    }
+
+    bool EMU_IsEmulationPaused() {
+        return paused;
+    }
+
     eStepMainLoopResult EMU_StepMainLoop(bool allowSleep, bool allowPause, int frameSkip, bool disableUser, bool disableCore) {
-        desmume_cycle(&ctrls_cfg);
+        if(!paused) {
+            desmume_cycle(&ctrls_cfg);
+        }
 
         int now;
 
@@ -531,17 +543,19 @@ public:
         DrawHUD();
 #ifdef INCLUDE_OPENGL_2D
         if ( my_config.opengl_2d) {
-        opengl_Draw( screen_texture, my_config.soft_colour_convert);
-        ctrls_cfg.resize_cb = &resizeWindow;
+            opengl_Draw( screen_texture, my_config.soft_colour_convert);
+            ctrls_cfg.resize_cb = &resizeWindow;
         }
         else
 #endif
         Draw();
         osd->clear();
 
-        for ( int i = 0; i < my_config.frameskip; i++ ) {
-            NDS_SkipNextFrame();
-            desmume_cycle(&ctrls_cfg);
+        if(!paused) {
+            for ( int i = 0; i < my_config.frameskip; i++ ) {
+                NDS_SkipNextFrame();
+                desmume_cycle(&ctrls_cfg);
+            }
         }
 
 #ifdef DISPLAY_FPS
@@ -580,7 +594,11 @@ public:
         }
 #endif
 
-        return ESTEP_DONE;
+        if(ctrls_cfg.sdl_quit) {
+            return ESTEP_NOT_IMPLEMENTED;  // TODO: better way to quit?
+        }else{
+            return ESTEP_DONE;
+        }
     };
 };
 

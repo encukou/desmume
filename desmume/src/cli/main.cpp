@@ -839,10 +839,12 @@ int main(int argc, char ** argv) {
 #endif
   ctrls_cfg.resize_cb = &resizeWindow_stub;
 
+#ifdef HAVE_LUA
   if(my_config.lua_script != "") {
     OpenLuaContext(0, lua_print_callback, lua_onstart_callback, lua_onstop_callback);
     RunLuaScriptFile(0, my_config.lua_script.c_str());
   }
+#endif
 
   while(!ctrls_cfg.sdl_quit) {
         cli_driver->EMU_StepMainLoop(true, true, -1, false, false);

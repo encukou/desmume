@@ -187,11 +187,12 @@ if test "x$enable_lua" = "xyes" ; then
                         have_lua=yes,
                         have_lua=no)
    fi
-   AC_SUBST(LUA_CFLAGS)
-   AC_SUBST(LUA_LIBS)
    if test "$have_lua" = "no" ; then
       AC_MSG_ERROR([Lua dev packages not found.])
    fi
+   AC_DEFINE([HAVE_LUA])
+   AC_SUBST(LUA_CFLAGS)
+   AC_SUBST(LUA_LIBS)
 fi
 
 AM_CONDITIONAL([HAVE_LUA], [test "${have_lua}" = "yes"])

@@ -485,7 +485,8 @@ static void desmume_cycle(struct ctrls_event_config * cfg)
 }
 
 void lua_print_callback(int uid, const char* str) {
-    printf("LUA printing: %s\n", str);
+    printf("LUA printing: %s", str);
+    if(!str[0] || str[strlen(str) - 1] != '\n') printf("\n");
 }
 
 void lua_onstart_callback(int uid) {

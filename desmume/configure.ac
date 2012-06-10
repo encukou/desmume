@@ -162,19 +162,31 @@ fi
 
 AC_PATH_PROG(UPDATEDESKTOP, [update-desktop-database])
 
-# Need check for both lua and lua5.1 to run on debian, see mysql bug #29945
-PKG_CHECK_MODULES(LUA,
-                  lua >= 5.1,
-                  HAVE_LUA=yes,
-                  HAVE_LUA=no)
-PKG_CHECK_MODULES(LUA,
-                  lua5.1 >= 5.1,
-                  HAVE_LUA=yes,
-                  HAVE_LUA=no)
-AC_SUBST(LUA_CFLAGS)
-AC_SUBST(LUA_LIBS)
+AC_ARG_ENABLE(lua,
+               [AC_HELP_STRING([--disable-lua], [disable Lua capabilities])],
+               enable_lua="$enableval",
+               enable_lua="yes")
 
-AM_CONDITIONAL([HAVE_LUA], [test "${HAVE_LUA}" = "yes"])
+if test "x$enable_lua" = "xyes" ; then
+# Need check for both lua and lua5.1 to run on debian, see mysql bug #29945
+   PKG_CHECK_MODULES(LUA,
+                     lua >= 5.1,
+                     have_lua=yes,
+                     have_lua=no)
+   if test "$have_lua" = "no" ; then
+      PKG_CHECK_MODULES(LUA,
+                        lua5.1 >= 5.1,
+                        have_lua=yes,
+                        have_lua=no)
+   fi
+   AC_SUBST(LUA_CFLAGS)
+   AC_SUBST(LUA_LIBS)
+   if test "$have_lua" = "no" ; then
+      AC_MSG_ERROR([Lua dev packages not found.])
+   fi
+fi
+
+AM_CONDITIONAL([HAVE_LUA], [test "${have_lua}" = "yes"])
 
 if test ! "x$HAVE_OPENAL" = "xyes" ; then
   PKG_CHECK_MODULES(ALSA, alsa >= 1.0, HAVE_ALSA=yes, HAVE_ALSA=no)
